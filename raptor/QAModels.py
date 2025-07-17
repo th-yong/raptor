@@ -1,8 +1,8 @@
 import logging
 import os
 
-from openai import OpenAI
-
+from openai import OpenAI, OpenAIError
+from utils.llm_manager import AzureAIClientManager
 
 import getpass
 from abc import ABC, abstractmethod
@@ -183,3 +183,31 @@ class UnifiedQAModel(BaseQAModel):
         input_string = question + " \\n " + context
         output = self.run_model(input_string)
         return output[0]
+
+
+class AzureQAModel(BaseQAModel):
+    """
+    QA using Azure OpenAI (e.g., gpt-4o) via AzureAIClientManager.
+    """
+    def __init__(self, client: AzureAIClientManager):
+        self.client = client
+
+    @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
+    def answer_question(self, context: str, question: str, max_tokens: int = 1000):
+        """
+        Answer 'question' based on 'context' using Azure OpenAI chat completions.
+        """
+        try:
+            messages = [
+                {"role": "system", "content": "You are an expert question-answering assistant. please speak  in Korean"},
+                {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"}
+            ]
+            resp = self.client.chat(
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=0.0
+            )
+            return resp.choices[0].message.content.strip()
+        except OpenAIError as e:
+            print(f"AzureQAModel error: {e}")
+            raise

@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from openai import OpenAI
 from sentence_transformers import SentenceTransformer
 from tenacity import retry, stop_after_attempt, wait_random_exponential
+from utils.llm_manager import AzureAIClientManager
 
 logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
 
@@ -35,3 +36,13 @@ class SBertEmbeddingModel(BaseEmbeddingModel):
 
     def create_embedding(self, text):
         return self.model.encode(text)
+
+
+class AzureEmbeddingModel(BaseEmbeddingModel):
+    def __init__(self, client: AzureAIClientManager):
+        self.client = client
+
+    def create_embedding(self, text: str):
+        # Azure client expects a list of strings, returns List[List[float]]
+        vecs = self.client.embed([text])
+        return vecs[0]
