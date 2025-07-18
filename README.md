@@ -28,6 +28,17 @@ cd raptor
 uv sync          # uses the existing pyproject.toml and uv.lock
 ```
 
+### Post-installation Setup
+
+After running `uv sync`, you need to make the following modifications to the sentence-transformers package:
+
+1. **SentenceTransformer.py (line 12)**: Remove `cache_downloads` parameter
+2. **util.py (line 17)**: Remove `cache_downloads` parameter
+
+These files are typically located in:
+- `.venv/lib/python3.11/site-packages/sentence_transformers/SentenceTransformer.py`
+- `.venv/lib/python3.11/site-packages/sentence_transformers/util.py`
+
 ## Basic Usage (Azure OpenAI)
 
 This fork is streamlined for **Azure OpenAI** deployments. The minimal end‑to‑end example is shown below—simply swap in your own endpoint, deployment names, and keys.
@@ -69,6 +80,29 @@ print(RA.answer_question("How did Cinderella reach her happy ending?"))
 ```
 
 For a richer walkthrough—including tree inspection and save/load—open **`demo_custom.ipynb`**.
+
+## Running chunk_and_run.py
+
+The `chunk_and_run.py` script provides a complete example of document ingestion and Q&A using RAPTOR with semantic chunking. To run it:
+
+1. **Set up environment variables** by creating a `.env` file in the project root:
+   ```
+   AZURE_OPENAI_ENDPOINT=https://<your-resource-name>.cognitiveservices.azure.com/
+   AZURE_OPENAI_KEY=<your-azure-api-key>
+   ```
+
+2. **Run the script**:
+   ```bash
+   uv run python chunk_and_run.py
+   ```
+
+The script will:
+- Load the document from `demo/현대해상3(퇴직연금)상품약관.txt`
+- Split it into semantic chunks using `ClusterSemanticTableTextSplitter`
+- Build a RAPTOR tree structure
+- Answer the question "이율적용형 이율 비율이란?"
+
+You can modify the document path and question in the `main()` function to test with your own content.
 
 ### Interactive Notebook Demo
 
