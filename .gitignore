@@ -32,3 +32,4 @@ assertion.log
 *.log
 *.db
 .venv
+*.pkl
