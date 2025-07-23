@@ -28,17 +28,6 @@ cd raptor
 uv sync          # uses the existing pyproject.toml and uv.lock
 ```
 
-### Post-installation Setup
-
-After running `uv sync`, you need to make the following modifications to the sentence-transformers package:
-
-1. **SentenceTransformer.py (line 12)**: Remove `cache_downloads` parameter
-2. **util.py (line 17)**: Remove `cache_downloads` parameter
-
-These files are typically located in:
-- `.venv/lib/python3.11/site-packages/sentence_transformers/SentenceTransformer.py`
-- `.venv/lib/python3.11/site-packages/sentence_transformers/util.py`
-
 ## Basic Usage (Azure OpenAI)
 
 This fork is streamlined for **Azure OpenAI** deployments. The minimal end‑to‑end example is shown below—simply swap in your own endpoint, deployment names, and keys.
