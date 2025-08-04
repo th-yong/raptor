@@ -11,12 +11,17 @@ import tiktoken
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 from .EmbeddingModels import BaseEmbeddingModel, OpenAIEmbeddingModel
-from .SummarizationModels import (BaseSummarizationModel,
-                                  GPT3TurboSummarizationModel)
+from .SummarizationModels import BaseSummarizationModel, GPT3TurboSummarizationModel
 from .tree_structures import Node, Tree
-from .utils import (distances_from_embeddings, get_children, get_embeddings,
-                    get_node_list, get_text,
-                    indices_of_nearest_neighbors_from_distances, split_text)
+from .utils import (
+    distances_from_embeddings,
+    get_children,
+    get_embeddings,
+    get_node_list,
+    get_text,
+    indices_of_nearest_neighbors_from_distances,
+    split_text,
+)
 
 logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
 
@@ -257,7 +262,9 @@ class TreeBuilder:
 
         return leaf_nodes
 
-    def build_from_text(self, text: str, use_multithreading: bool = True, chunked_list: list = None) -> Tree:
+    def build_from_text(
+        self, text: str, use_multithreading: bool = True, chunked_list: list = None
+    ) -> Tree:
         """Builds a golden tree from the input text, optionally using multithreading.
 
         Args:
@@ -277,11 +284,41 @@ class TreeBuilder:
         logging.info("Creating Leaf Nodes")
 
         if use_multithreading:
-            leaf_nodes = self.multithreaded_create_leaf_nodes(chunks)
+            leaf_nodes = {}
+            with ThreadPoolExecutor() as executor:
+                futures = {}
+                for index, chunk in enumerate(chunks):
+                    if isinstance(chunk, dict) and "text" in chunk:
+                        text = chunk["text"]
+                        vector = chunk.get("vector")
+                        if vector is not None:
+                            # Build node manually
+                            embeddings = {self.cluster_embedding_model: vector}
+                            node = Node(text, index, set(), embeddings)
+                            leaf_nodes[index] = node
+                        else:
+                            futures[executor.submit(self.create_node, index, text)] = (
+                                index
+                            )
+                    else:
+                        futures[executor.submit(self.create_node, index, chunk)] = index
+
+                for future in as_completed(futures):
+                    index, node = future.result()
+                    leaf_nodes[index] = node
         else:
             leaf_nodes = {}
-            for index, text in enumerate(chunks):
-                __, node = self.create_node(index, text)
+            for index, chunk in enumerate(chunks):
+                if isinstance(chunk, dict) and "text" in chunk:
+                    text = chunk["text"]
+                    vector = chunk.get("vector")
+                    if vector is not None:
+                        embeddings = {self.cluster_embedding_model: vector}
+                        node = Node(text, index, set(), embeddings)
+                    else:
+                        _, node = self.create_node(index, text)
+                else:
+                    _, node = self.create_node(index, chunk)
                 leaf_nodes[index] = node
 
         layer_to_nodes = {0: list(leaf_nodes.values())}

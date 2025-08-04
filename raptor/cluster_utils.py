@@ -12,6 +12,7 @@ from sklearn.mixture import GaussianMixture
 logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
 
 from .tree_structures import Node
+
 # Import necessary methods from other modules
 from .utils import get_embeddings
 
@@ -27,10 +28,18 @@ def global_cluster_embeddings(
     metric: str = "cosine",
 ) -> np.ndarray:
     if n_neighbors is None:
-        n_neighbors = int((len(embeddings) - 1) ** 0.5)
-    reduced_embeddings = umap.UMAP(
-        n_neighbors=n_neighbors, n_components=dim, metric=metric
-    ).fit_transform(embeddings)
+        # Set n_neighbors dynamically, ensuring it's at least 2 and at most 15 or len(embeddings)-1
+        n_neighbors = min(15, max(2, len(embeddings) - 1))
+    try:
+        reduced_embeddings = umap.UMAP(
+            n_neighbors=n_neighbors, n_components=dim, metric=metric
+        ).fit_transform(embeddings)
+    except Exception as e:
+        raise RuntimeError(
+            f"UMAP dimensionality reduction failed with n_neighbors={n_neighbors}, "
+            f"n_components={dim}, metric={metric}, number of embeddings={len(embeddings)}. "
+            f"Error: {e}"
+        )
     return reduced_embeddings
 
 
@@ -50,7 +59,7 @@ def get_optimal_clusters(
     n_clusters = np.arange(1, max_clusters)
     bics = []
     for n in n_clusters:
-        gm = GaussianMixture(n_components=n, random_state=random_state)
+        gm = GaussianMixture(n_components=n, random_state=random_state, reg_covar=1e-3)
         gm.fit(embeddings)
         bics.append(gm.bic(embeddings))
     optimal_clusters = n_clusters[np.argmin(bics)]
@@ -59,7 +68,9 @@ def get_optimal_clusters(
 
 def GMM_cluster(embeddings: np.ndarray, threshold: float, random_state: int = 0):
     n_clusters = get_optimal_clusters(embeddings)
-    gm = GaussianMixture(n_components=n_clusters, random_state=random_state)
+    gm = GaussianMixture(
+        n_components=n_clusters, random_state=random_state, reg_covar=1e-3
+    )
     gm.fit(embeddings)
     probs = gm.predict_proba(embeddings)
     labels = [np.where(prob > threshold)[0] for prob in probs]
@@ -69,7 +80,9 @@ def GMM_cluster(embeddings: np.ndarray, threshold: float, random_state: int = 0)
 def perform_clustering(
     embeddings: np.ndarray, dim: int, threshold: float, verbose: bool = False
 ) -> List[np.ndarray]:
-    reduced_embeddings_global = global_cluster_embeddings(embeddings, min(dim, len(embeddings) -2))
+    reduced_embeddings_global = global_cluster_embeddings(
+        embeddings, min(dim, len(embeddings) - 2)
+    )
     global_clusters, n_global_clusters = GMM_cluster(
         reduced_embeddings_global, threshold
     )
@@ -133,9 +146,9 @@ class RAPTOR_Clustering(ClusteringAlgorithm):
     def perform_clustering(
         nodes: List[Node],
         embedding_model_name: str,
-        max_length_in_cluster: int = 3500,
+        max_length_in_cluster: int = 18000,  # 기존 3500
         tokenizer=tiktoken.get_encoding("cl100k_base"),
-        reduction_dimension: int = 10,
+        reduction_dimension: int = 7,  # 기존 10
         threshold: float = 0.1,
         verbose: bool = False,
     ) -> List[List[Node]]:

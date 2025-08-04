@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from pathlib import Path
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Any
 from collections import defaultdict
 
 from dotenv import load_dotenv
@@ -11,6 +11,11 @@ from raptor.EmbeddingModels import AzureEmbeddingModel
 from raptor.SummarizationModels import AzureSummarizationModel
 from raptor.QAModels import AzureQAModel
 from raptor import RetrievalAugmentation, RetrievalAugmentationConfig
+
+# Suppress FutureWarnings globally
+import warnings
+
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 def create_azure_clients() -> (
@@ -70,7 +75,7 @@ def build_retrieval_augmentation(
     return RetrievalAugmentation(config=cfg)
 
 
-def load_and_group_csv_data(csv_path: str) -> Dict[str, List[str]]:
+def load_and_group_csv_data(csv_path: str) -> Dict[str, List[Dict[str, Any]]]:
     """
     Load CSV file and group KO_content by source_title.
 
@@ -78,23 +83,36 @@ def load_and_group_csv_data(csv_path: str) -> Dict[str, List[str]]:
         csv_path: Path to the character.csv file
 
     Returns:
-        Dictionary with source_title as key and list of KO_content as value
+        Dictionary with source_title as key and list of dicts with text and optional vector
     """
     print(f"Loading CSV data from {csv_path}...")
 
     # Read CSV file
     df = pd.read_csv(csv_path)
 
-    # Group by source_title and collect KO_content
+    # Group by source_title and collect KO_content and optional KO_content_vector
     grouped_data = defaultdict(list)
 
     for _, row in df.iterrows():
         source_title = row["source_title"]
         ko_content = row["KO_content"]
+        ko_content = "" if pd.isna(ko_content) else str(ko_content)
+        vector = None
+        if "KO_content_vector" in row and pd.notna(row["KO_content_vector"]):
+            try:
+                import ast
 
-        # Skip empty or NaN content
-        if pd.notna(ko_content) and ko_content.strip():
-            grouped_data[source_title].append(ko_content.strip())
+                vector = ast.literal_eval(row["KO_content_vector"])
+                if isinstance(vector, list) and len(vector) != 3072:
+                    print(
+                        f"⚠️ Vector length mismatch for '{source_title}': expected 3072, got {len(vector)}. Ignoring vector."
+                    )
+                    vector = None
+            except Exception as e:
+                print(f"⚠️ Failed to parse vector for '{source_title}': {e}")
+        grouped_data[source_title].append(
+            {"text": ko_content.strip(), "vector": vector}
+        )
 
     print(f"Found {len(grouped_data)} unique source titles")
     for title, contents in grouped_data.items():
@@ -105,7 +123,7 @@ def load_and_group_csv_data(csv_path: str) -> Dict[str, List[str]]:
 
 def process_source_title(
     source_title: str,
-    chunked_list: List[str],
+    chunked_list: List[Dict[str, Any]],
     embedding_model: AzureEmbeddingModel,
     summarization_model: AzureSummarizationModel,
     qa_model: AzureQAModel,
@@ -117,7 +135,7 @@ def process_source_title(
 
     Args:
         source_title: Name of the source document
-        chunked_list: List of pre-chunked content
+        chunked_list: List of dicts with 'text' and optional 'vector'
         embedding_model: Azure embedding model
         summarization_model: Azure summarization model
         qa_model: Azure QA model
@@ -128,11 +146,11 @@ def process_source_title(
         bool: True if processed, False if skipped
     """
     # Create safe filename from source_title
-    safe_filename = "".join(
-        c for c in source_title if c.isalnum() or c in (" ", "-", "_")
-    ).rstrip()
-    safe_filename = safe_filename.replace(" ", "_")
-    save_path = results_dir / f"{safe_filename}.pkl"
+    # safe_filename = "".join(
+    #     c for c in source_title if c.isalnum() or c in (" ", "-", "_")
+    # ).rstrip()
+    # safe_filename = safe_filename.replace(" ", "_")
+    save_path = results_dir / f"{source_title}.pkl"
 
     # Check if file already exists
     if skip_existing and save_path.exists():
@@ -148,7 +166,11 @@ def process_source_title(
     ra = build_retrieval_augmentation(embedding_model, summarization_model, qa_model)
 
     # Add documents using the pre-chunked content
-    ra.add_documents(docs=None, chunked_list=chunked_list)
+    ra.add_documents(
+        docs=None,
+        chunked_list=[chunk["text"] for chunk in chunked_list],
+        vectors=[chunk.get("vector") for chunk in chunked_list],
+    )
 
     # Save the tree
     ra.save(str(save_path))
@@ -157,14 +179,18 @@ def process_source_title(
 
 
 def main(skip_existing: bool = True) -> None:
+    import traceback
+
     load_dotenv()  # Load variables from a .env file if present.
 
     # Create results directory
-    results_dir = Path("results/recursive")
+    terms = "iterms"  # "eterms" or "iterms"
+    chunck = "basic"  # "basic" or "table"
+    results_dir = Path(f"results/{terms}/{chunck}")
     results_dir.mkdir(exist_ok=True)
 
     # Load CSV data and group by source_title
-    csv_path = "input/recursive.csv"
+    csv_path = f"input/{terms}_{chunck}.csv"
     grouped_data = load_and_group_csv_data(csv_path)
 
     # Check existing files if skip_existing is True
@@ -212,6 +238,7 @@ def main(skip_existing: bool = True) -> None:
         except Exception as e:
             error_count += 1
             print(f"\n❌ Error processing {source_title}: {e}")
+            traceback.print_exc()
             continue
 
     # Summary
