@@ -120,7 +120,7 @@ class FaissRetriever(BaseRetriever):
         for future in tqdm(futures, total=len(futures), desc="Building embeddings"):
             self.embeddings.append(future.result())
 
-        self.embeddings = np.array(self.embeddings, dtype=np.float32)
+        self.embeddings = np.array(self.embeddings, dtype=np.float64)
 
         self.index = faiss.IndexFlatIP(self.embeddings.shape[1])
         self.index.add(self.embeddings)
@@ -138,7 +138,7 @@ class FaissRetriever(BaseRetriever):
 
         self.embeddings = np.array(
             [node.embeddings[self.embedding_model_string] for node in leaf_nodes],
-            dtype=np.float32,
+            dtype=np.float64,
         )
 
         self.index = faiss.IndexFlatIP(self.embeddings.shape[1])
@@ -175,7 +175,7 @@ class FaissRetriever(BaseRetriever):
             [
                 np.array(
                     self.question_embedding_model.create_embedding(query),
-                    dtype=np.float32,
+                    dtype=np.float64,
                 ).squeeze()
             ]
         )

@@ -79,6 +79,7 @@ class AzureSummarizationModel(BaseSummarizationModel):
     """
     Summarization using Azure OpenAI (e.g., gpt-4o) via AzureAIClientManager.
     """
+
     def __init__(self, client: AzureAIClientManager):
         self.client = client
 
@@ -93,6 +94,7 @@ class AzureSummarizationModel(BaseSummarizationModel):
                 "content": (
                     "당신은 보험약관에 대해 안전한 요약을 제공하는 유용한 어시스턴트입니다."
                     "해당 약관에는 신체적, 정신적인 피해에 대한 보상을 논의할 수 있습니다."
+                    "청킹되어 일부 내용이 누락될 수 있습니다."
                     "공식문서이므로 노골적·부적절한 내용거의 없겠지만, 포함되어 있으면 중립적인 표현으로 바꿔주세요."
                 ),
             },
@@ -101,24 +103,34 @@ class AzureSummarizationModel(BaseSummarizationModel):
                 "content": f"다음 텍스트를 간결하게 요약해 주세요:\n\n{context}",
             },
         ]
-        resp = self.client.chat(
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=0.0
-        )
+        try:
+            resp = self.client.chat(
+                messages=messages, max_tokens=max_tokens, temperature=0.0
+            )
 
-        # Attempt to extract text from response
-        choice = resp.choices[0]
+            # Attempt to extract text from response
+            choice = resp.choices[0]
 
-        # Primary path: choice.message.content
-        content = getattr(choice.message, "content", None) if hasattr(choice, "message") else None
+            # Primary path: choice.message.content
+            content = (
+                getattr(choice.message, "content", None)
+                if hasattr(choice, "message")
+                else None
+            )
 
-        # Fallback path: choice.text
-        if not content and hasattr(choice, "text"):
-            content = choice.text
+            # Fallback path: choice.text
+            if not content and hasattr(choice, "text"):
+                content = choice.text
 
-        # Ensure we have a string
-        if not isinstance(content, str):
-            raise ValueError(f"AzureSummarizationModel returned non-string content: {content!r}")
+            # Ensure we have a string
+            if not isinstance(content, str):
+                raise ValueError(
+                    f"AzureSummarizationModel returned non-string content: {content!r}"
+                )
 
-        return content.strip()
+            return content.strip()
+
+        except Exception as e:
+            logging.warning(f"Summarization failed due to: {e}")
+            logging.warning(f"Filtered Content Sample: {context[:200]!r}")
+            return "⚠️ Skipped summarization due to content filter trigger."
