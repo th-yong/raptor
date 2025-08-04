@@ -201,22 +201,32 @@ class RetrievalAugmentation:
             f"Successfully initialized RetrievalAugmentation with Config {config.log_config()}"
         )
 
-    def add_documents(self, docs:str = None, chunked_list: list = None):
+    def add_documents(
+        self, docs: str = None, chunked_list: list = None, vectors: list = None
+    ):
         """
         Adds documents to the tree and creates a TreeRetriever instance.
 
         Args:
             docs (str): The input text to add to the tree.
+            chunked_list (list): List of text chunks.
+            vectors (list): Optional list of vectors aligned with chunked_list.
         """
         if self.tree is not None:
             user_input = input(
                 "Warning: Overwriting existing tree. Did you mean to call 'add_to_existing' instead? (y/n): "
             )
             if user_input.lower() == "y":
-                # self.add_to_existing(docs)
                 return
 
-        self.tree = self.tree_builder.build_from_text(text = docs, chunked_list = chunked_list)
+        # If both chunked_list and vectors are provided, update chunked_list with vectors
+        if chunked_list is not None and vectors is not None:
+            for i in range(min(len(chunked_list), len(vectors))):
+                chunked_list[i] = {"text": chunked_list[i], "vector": vectors[i]}
+
+        self.tree = self.tree_builder.build_from_text(
+            text=docs, chunked_list=chunked_list
+        )
         self.retriever = TreeRetriever(self.tree_retriever_config, self.tree)
 
     def retrieve(
