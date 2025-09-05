@@ -76,7 +76,7 @@ The `chunk_and_run.py` script provides a complete example of document ingestion 
 
 1. **Set up environment variables** by creating a `.env` file in the project root:
    ```
-   AZURE_OPENAI_ENDPOINT=https://<your-resource-name>.cognitiveservices.azure.com/
+   durable-azure-openai-endpoint=https://<your-resource-name>.cognitiveservices.azure.com/
    AZURE_OPENAI_KEY=<your-azure-api-key>
    ```
 

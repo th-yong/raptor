@@ -14,19 +14,20 @@ class AzureAIClientManager:
         "gpt-4o",  # model version 2024-11-20
         "gpt-4o-mini",  # model version 2024-11-20
         "gpt-4.1-mini",  # model version 2024-12-01
+        "o3"
     }
 
     def __init__(
         self,
         endpoint: str = None,
         api_key: str = None,
-        api_version: str = "2024-12-01-preview",
+        api_version: str = None,
         deployment: str = None,
     ):
-        self.endpoint = endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
-        self.api_key = api_key or os.getenv("AZURE_OPENAI_API_KEY")
-        self.api_version = api_version
-        self.deployment = deployment
+        self.endpoint = os.getenv("durable-azure-openai-endpoint")
+        self.api_key = os.getenv("durable-azure-openai-key")
+        self.api_version = os.getenv("durable-azure-openai-api-version")
+        self.deployment = os.getenv("durable-azure-openai-deployment")
 
         self._client = AzureOpenAI(
             azure_endpoint=self.endpoint,

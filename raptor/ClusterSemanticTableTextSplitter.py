@@ -21,7 +21,7 @@ class ClusterSemanticTableTextSplitter:
         self.page_marker_pattern = re.compile(r'--- Page (\d+) ---')
         azure_embedder = AzureOpenAIEmbeddings(model="text-embedding-3-large",
                                                openai_api_key = os.getenv("AZURE_OPENAI_KEY"),
-                                               azure_endpoint= os.getenv("AZURE_OPENAI_ENDPOINT"),
+                                               azure_endpoint= os.getenv("durable-azure-openai-endpoint"),
                                                )
 
         def embedding_function(batch: list[str]) -> list[list[float]]:

@@ -24,7 +24,7 @@ class TreeResummarizer:
     def __init__(self, new_model_deployment: str):
         """
         Args:
-            new_model_deployment: 새로 사용할 모델 deployment 이름 (gpt-4o, gpt-4o-mini, gpt-4.1-mini)
+            new_model_deployment: 새로 사용할 모델 deployment 이름 (gpt-4o, gpt-4o-mini, gpt-4.1-mini, o3)
         """
         self.new_model_deployment = new_model_deployment
         
@@ -118,11 +118,11 @@ def main():
     load_dotenv()
     
     # Azure 환경변수 확인
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    endpoint = os.getenv("durable-azure-openai-endpoint")
+    api_key = os.getenv("durable-azure-openai-key")
     
     if not endpoint or not api_key:
-        logger.error("AZURE_OPENAI_ENDPOINT와 AZURE_OPENAI_API_KEY 환경변수가 설정되지 않았습니다.")
+        logger.error("durable-azure-openai-endpoint와 durable-azure-openai-key 환경변수가 설정되지 않았습니다.")
         logger.error(".env 파일을 확인하거나 환경변수를 설정해주세요.")
         return
     

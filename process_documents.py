@@ -26,28 +26,28 @@ def create_azure_clients() -> (
 
     Environment variables required
     ------------------------------
-    AZURE_OPENAI_ENDPOINT : str
+    durable-azure-openai-endpoint : str
         The endpoint of your Azure Cognitive Services resource.
-    AZURE_OPENAI_KEY : str
+    durable-azure-openai-key : str
         The API key for the resource.
     """
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_KEY")
+    endpoint = os.getenv("durable-azure-openai-endpoint")
+    api_key = os.getenv("durable-azure-openai-key")
 
     if not endpoint or not api_key:
         raise EnvironmentError(
-            "AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY must be set."
+            "durable-azure-openai-endpoint and durable-azure-openai-key must be set."
         )
 
     emb_client = AzureAIClientManager(
         endpoint=endpoint,
         api_key=api_key,
-        deployment="text-embedding-3-large",
+        deployment=os.getenv("durable-azure-openai-embedding-deployment"),
     )
     chat_client = AzureAIClientManager(
         endpoint=endpoint,
         api_key=api_key,
-        deployment="gpt-4o",
+        deployment=os.getenv("durable-azure-openai-deployment"),
     )
 
     return (
