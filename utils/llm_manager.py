@@ -12,6 +12,8 @@ class AzureAIClientManager:
     ALLOWED_EMBEDDING_DEPLOYMENT = {"text-embedding-3-large"}
     ALLOWED_CHAT_DEPLOYMENTS = {
         "gpt-4o",  # model version 2024-11-20
+        "gpt-4o-mini",  # model version 2024-11-20
+        "gpt-4.1-mini",  # model version 2024-12-01
     }
 
     def __init__(

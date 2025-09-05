@@ -34,3 +34,4 @@ assertion.log
 .venv
 *.pkl
 *.csv
+*kiro
