@@ -196,3 +196,116 @@ class RAPTOR_Clustering(ClusteringAlgorithm):
                 node_clusters.append(cluster_nodes)
 
         return node_clusters
+
+
+class PageAwareRAPTORClustering(ClusteringAlgorithm):
+    """
+    페이지 번호를 고려한 RAPTOR 클러스터링
+    약관 문서에서 페이지 간격이 큰 내용들은 클러스터링하지 않음
+    """
+
+    @staticmethod
+    def perform_clustering(
+        nodes: List[Node],
+        embedding_model_name: str,
+        max_length_in_cluster: int = 25000,  # o3 최적화: 대폭 확장
+        tokenizer=tiktoken.get_encoding("cl100k_base"),
+        reduction_dimension: int = 7,
+        threshold: float = 0.1,
+        max_page_gap: int = 10,  # 최대 페이지 간격 (기본: 10페이지)
+        verbose: bool = False,
+    ) -> List[List[Node]]:
+        """
+        페이지 제약을 고려한 클러스터링
+
+        Args:
+            max_page_gap: 클러스터링을 허용할 최대 페이지 간격
+        """
+
+        # 먼저 페이지 번호별로 노드들을 그룹핑
+        page_groups = {}
+        nodes_without_page = []
+
+        for node in nodes:
+            if hasattr(node, "page_number") and node.page_number is not None:
+                page_num = node.page_number
+                if page_num not in page_groups:
+                    page_groups[page_num] = []
+                page_groups[page_num].append(node)
+            else:
+                nodes_without_page.append(node)
+
+        if verbose:
+            logging.info(
+                f"페이지별 그룹: {len(page_groups)}개, 페이지 정보 없는 노드: {len(nodes_without_page)}개"
+            )
+
+        # 페이지 번호가 없는 노드들은 기존 방식으로 클러스터링
+        final_clusters = []
+        if nodes_without_page:
+            if verbose:
+                logging.info(
+                    f"페이지 정보 없는 {len(nodes_without_page)}개 노드를 기존 방식으로 클러스터링"
+                )
+            final_clusters.extend(
+                RAPTOR_Clustering.perform_clustering(
+                    nodes_without_page,
+                    embedding_model_name,
+                    max_length_in_cluster,
+                    tokenizer,
+                    reduction_dimension,
+                    threshold,
+                    verbose,
+                )
+            )
+
+        # 페이지별로 정렬된 순서로 처리
+        sorted_pages = sorted(page_groups.keys())
+
+        # 연속된 페이지들을 묶어서 클러스터링 범위 결정
+        page_ranges = []
+        current_range = [sorted_pages[0]] if sorted_pages else []
+
+        for i in range(1, len(sorted_pages)):
+            current_page = sorted_pages[i]
+            last_page = current_range[-1]
+
+            # 페이지 간격이 max_page_gap 이하면 같은 범위로 묶음
+            if current_page - last_page <= max_page_gap:
+                current_range.append(current_page)
+            else:
+                # 새로운 범위 시작
+                page_ranges.append(current_range)
+                current_range = [current_page]
+
+        if current_range:
+            page_ranges.append(current_range)
+
+        if verbose:
+            logging.info(f"페이지 범위 {len(page_ranges)}개: {page_ranges}")
+
+        # 각 페이지 범위 내에서 클러스터링 수행
+        for page_range in page_ranges:
+            range_nodes = []
+            for page_num in page_range:
+                range_nodes.extend(page_groups[page_num])
+
+            if verbose:
+                logging.info(
+                    f"페이지 {page_range[0]}-{page_range[-1]} 범위: {len(range_nodes)}개 노드 클러스터링"
+                )
+
+            # 해당 범위의 노드들을 클러스터링
+            range_clusters = RAPTOR_Clustering.perform_clustering(
+                range_nodes,
+                embedding_model_name,
+                max_length_in_cluster,
+                tokenizer,
+                reduction_dimension,
+                threshold,
+                verbose,
+            )
+
+            final_clusters.extend(range_clusters)
+
+        return final_clusters

@@ -4,12 +4,22 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 from typing import Dict, List, Set
 
-from .cluster_utils import ClusteringAlgorithm, RAPTOR_Clustering
+from .cluster_utils import (
+    ClusteringAlgorithm,
+    RAPTOR_Clustering,
+    PageAwareRAPTORClustering,
+)
 from .tree_builder import TreeBuilder, TreeBuilderConfig
 from .tree_structures import Node, Tree
-from .utils import (distances_from_embeddings, get_children, get_embeddings,
-                    get_node_list, get_text,
-                    indices_of_nearest_neighbors_from_distances, split_text)
+from .utils import (
+    distances_from_embeddings,
+    get_children,
+    get_embeddings,
+    get_node_list,
+    get_text,
+    indices_of_nearest_neighbors_from_distances,
+    split_text,
+)
 
 logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
 
