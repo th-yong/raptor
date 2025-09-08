@@ -14,7 +14,7 @@ class AzureAIClientManager:
         "gpt-4o",  # model version 2024-11-20
         "gpt-4o-mini",  # model version 2024-11-20
         "gpt-4.1-mini",  # model version 2024-12-01
-        "o3"
+        "o3",
     }
 
     def __init__(
@@ -24,10 +24,11 @@ class AzureAIClientManager:
         api_version: str = None,
         deployment: str = None,
     ):
-        self.endpoint = os.getenv("durable-azure-openai-endpoint")
-        self.api_key = os.getenv("durable-azure-openai-key")
-        self.api_version = os.getenv("durable-azure-openai-api-version")
-        self.deployment = os.getenv("durable-azure-openai-deployment")
+        # 파라미터가 제공되면 사용하고, 그렇지 않으면 환경변수 사용
+        self.endpoint = endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
+        self.api_key = api_key or os.getenv("AZURE_OPENAI_API_KEY")
+        self.api_version = api_version or os.getenv("AZURE_OPENAI_API_VERSION")
+        self.deployment = deployment or os.getenv("AZURE_COMPLETION_DEPLOYMENT_NAME")
 
         self._client = AzureOpenAI(
             azure_endpoint=self.endpoint,

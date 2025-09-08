@@ -45,7 +45,7 @@ class TreeBuilderConfig:
         self.tokenizer = tokenizer
 
         if max_tokens is None:
-            max_tokens = 100
+            max_tokens = 2000  # o3 최적화: 개별 청크 크기 확장
         if not isinstance(max_tokens, int) or max_tokens < 1:
             raise ValueError("max_tokens must be an integer and at least 1")
         self.max_tokens = max_tokens
@@ -75,7 +75,7 @@ class TreeBuilderConfig:
         self.selection_mode = selection_mode
 
         if summarization_length is None:
-            summarization_length = 100
+            summarization_length = 3000  # o3 최적화: 대폭 확장
         self.summarization_length = summarization_length
 
         if summarization_model is None:
@@ -161,7 +161,11 @@ class TreeBuilder:
         )
 
     def create_node(
-        self, index: int, text: str, children_indices: Optional[Set[int]] = None
+        self,
+        index: int,
+        text: str,
+        children_indices: Optional[Set[int]] = None,
+        page_number=None,
     ) -> Tuple[int, Node]:
         """Creates a new node with the given index, text, and (optionally) children indices.
 
@@ -170,6 +174,7 @@ class TreeBuilder:
             text (str): The text associated with the new node.
             children_indices (Optional[Set[int]]): A set of indices representing the children of the new node.
                 If not provided, an empty set will be used.
+            page_number (Optional[int]): The page number for insurance policy documents.
 
         Returns:
             Tuple[int, Node]: A tuple containing the index and the newly created node.
@@ -181,7 +186,7 @@ class TreeBuilder:
             model_name: model.create_embedding(text)
             for model_name, model in self.embedding_models.items()
         }
-        return (index, Node(text, index, children_indices, embeddings))
+        return (index, Node(text, index, children_indices, embeddings, page_number))
 
     def create_embedding(self, text) -> List[float]:
         """
@@ -290,16 +295,19 @@ class TreeBuilder:
                 for index, chunk in enumerate(chunks):
                     if isinstance(chunk, dict) and "text" in chunk:
                         text = chunk["text"]
+                        page_number = chunk.get("page_number")
                         vector = chunk.get("vector")
                         if vector is not None:
                             # Build node manually
                             embeddings = {self.cluster_embedding_model: vector}
-                            node = Node(text, index, set(), embeddings)
+                            node = Node(text, index, set(), embeddings, page_number)
                             leaf_nodes[index] = node
                         else:
-                            futures[executor.submit(self.create_node, index, text)] = (
-                                index
-                            )
+                            futures[
+                                executor.submit(
+                                    self.create_node, index, text, None, page_number
+                                )
+                            ] = index
                     else:
                         futures[executor.submit(self.create_node, index, chunk)] = index
 
@@ -311,12 +319,13 @@ class TreeBuilder:
             for index, chunk in enumerate(chunks):
                 if isinstance(chunk, dict) and "text" in chunk:
                     text = chunk["text"]
+                    page_number = chunk.get("page_number")
                     vector = chunk.get("vector")
                     if vector is not None:
                         embeddings = {self.cluster_embedding_model: vector}
-                        node = Node(text, index, set(), embeddings)
+                        node = Node(text, index, set(), embeddings, page_number)
                     else:
-                        _, node = self.create_node(index, text)
+                        _, node = self.create_node(index, text, None, page_number)
                 else:
                     _, node = self.create_node(index, chunk)
                 leaf_nodes[index] = node
