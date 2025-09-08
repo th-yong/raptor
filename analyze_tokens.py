@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-편의 실행 스크립트 - 문서 처리
+편의 실행 스크립트 - 토큰 비용 분석
 """
 
 import sys
@@ -11,6 +11,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # 실제 스크립트 import 및 실행
 if __name__ == "__main__":
-    from scripts.processing.process_and_merge_documents import main
+    from scripts.analysis.token_cost_analyzer import main
 
     main()
